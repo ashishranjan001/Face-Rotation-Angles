@@ -179,7 +179,7 @@ for imagePath in paths.list_images(inputPath):
                 # Finding angles only when structure of nose can be estimated
                 if noseFlag:
                         yaw = math.degrees(math.asin(((endX - startX) / 2 if abs(rectCx - avgx) > (endX - startX) / 2  else rectCx - avgx) * 2 / (endX - startX)))
-                        pitch = math.degrees(math.asin((rectCy - avgy) * 2 / (endY - startY))) + 5
+                        pitch = math.degrees(math.asin((rectCy - avgy) * 2 / (endY - startY))) + (endY - startY) * 0.015
                         print("yaw = {:.2f}, ".format(yaw) + "pitch = {:.2f}".format(pitch))
                         
                         classifyAngles(inFrame, yaw, pitch, currentOutputPath, ctr)
