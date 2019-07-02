@@ -1,0 +1,25 @@
+Instructions
+=============
+
+Developed by: Ashish Ranjan - whoashishranjan@gmail.com
+
+This app package was contains two executable files.
+	1. Classify_Face_Angles.exe
+	2. Classify_Face_Frontal_Angles.exe
+
+Both executables take the same inputs and produce
+the same outputs but in different formats. Either
+one can be used as required.
+
+INPUT
+======
+1. Path to dataset which needs to be classified.
+
+2. Path to directory where the classified images
+   will be stored. If the directory does not
+   exist, it will be created.
+
+3. Width of the images to be used while processing.
+   It depends on the size of the faces in the
+   images. For the QDF Dataset, a value of 300 was
+   found to be appropriate.

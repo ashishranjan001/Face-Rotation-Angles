@@ -7,6 +7,7 @@ from imutils import resize
 from imutils import face_utils
 from imutils import paths
 import sys
+import time
 
 # Gets absolute path to resource for PyInstaller
 def resource_path(relative_path):
@@ -206,3 +207,7 @@ print("Number of Images Processed = " + str(ctr))
 # do a bit of cleanup
 #cap.release()
 cv2.destroyAllWindows()
+
+input("\nPress ENTER to continue...")
+print("\nDeveloped by Ashish Ranjan, e-mail: whoashishranjan@gmail.com")
+time.sleep(3)
