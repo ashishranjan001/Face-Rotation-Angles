@@ -6,7 +6,18 @@ import os
 from imutils import resize
 from imutils import face_utils
 from imutils import paths
+import sys
 
+# Gets absolute path to resource for PyInstaller
+def resource_path(relative_path):
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+# Finds the tip of the nose and retrns the coordinates
 def prediceFaceLandmarks(gray, startX, startY, endX, endY):
     shape = predictor(gray[startY:endY, startX:endX], rect)
     shape = face_utils.shape_to_np(shape)
@@ -17,6 +28,7 @@ def prediceFaceLandmarks(gray, startX, startY, endX, endY):
             xp = xp + startX
             yp = yp + startY
             i = i + 1
+            # Checking Landmark numbers for nose
             if i>=28 and i<=36:
                     avgx = avgx + xp
                     avgy = avgy + yp
@@ -24,14 +36,17 @@ def prediceFaceLandmarks(gray, startX, startY, endX, endY):
             if i==31:
                 tx = xp
                 ty = yp
-    avgx = (int)(avgx/9)
-    avgy = (int)(avgy/9)
+    # Average position of nose can also be taken
+    #avgx = (int)(avgx/9)
+    #avgy = (int)(avgy/9)
     avgx = tx
     avgy = ty
     cv2.circle(frame, (avgx, avgy), 1, (0, 255, 255), -1)
     return avgx, avgy
 
+# Generates Folder Structure for output
 def classifyAngles(inFrame, yaw, pitch, currentOutputPath, ctr):
+
     if not os.path.exists(currentOutputPath + "/Frontal/"):
         os.mkdir(currentOutputPath + "/Frontal/")
     if not os.path.exists(currentOutputPath + "/Y15/"):
@@ -61,15 +76,22 @@ def classifyAngles(inFrame, yaw, pitch, currentOutputPath, ctr):
     else:
         cv2.imwrite(currentOutputPath + "/Others/" + str(ctr) + ".jpg", inFrame)
 
-prototxtLocation = "deploy.prototxt.txt"
-caffeModel = "res10_300x300_ssd_iter_140000.caffemodel"
-predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+# Path for Model Structure
+prototxtLocation = resource_path("deploy.prototxt.txt")
+# Path for pre trained weight values 
+caffeModel = resource_path("res10_300x300_ssd_iter_140000.caffemodel")
+# Path for Facial Landmarks Predictor
+predictor = dlib.shape_predictor(resource_path("shape_predictor_68_face_landmarks.dat"))
 detector = dlib.get_frontal_face_detector()
 thresholdConfidence = 0.5
 
 inputPath = input("Enter Input Images Path : ")
+inputPath = inputPath.replace('\\','/')
 
 outputPath = input("Enter Output Images Path : ")
+outputPath = outputPath.replace('\\','/')
+
+processingWidth = int(input("Enter width of images to be used for processing (E.g. 300) : "))
 
 faceFlag = False
 noseFlag = False
@@ -79,39 +101,43 @@ print("[INFO] loading model...")
 net = cv2.dnn.readNetFromCaffe(prototxtLocation, caffeModel)
 
 # initialize the video stream and allow the cammera sensor to warmup
-print("[INFO] starting video stream...")
+# print("[INFO] starting video stream...")
 #cap = cv2.VideoCapture(0)
+
+# Count to store number of images
 ctr = 0
 
+# Create output path if not already present
 if not os.path.exists(outputPath):
     os.mkdir(outputPath)
 
-# loop over the frames from the video stream
+# Loop over the images in the input directory
 for imagePath in paths.list_images(inputPath):
         imagePath = imagePath.replace('\\','/')
-        currentOutputPath = outputPath + "/" + imagePath[0:imagePath.rfind("/")]
-        print(imagePath)
+        inputDirectory = inputPath[inputPath.rfind("/")+1:] + "/" + imagePath.replace(inputPath + "/", "")
+        currentOutputPath = outputPath + "/" + inputDirectory[:inputDirectory.rfind("/")]
+        print("\n" + imagePath)
         print(currentOutputPath)
         if not os.path.exists(currentOutputPath):
             os.makedirs(currentOutputPath)
-        # grab the frame from the threaded video stream and resize it
-        # to have a maximum width of 400 pixels
-        #ret, frame = cap.read()
+        # Grab the image and resize it for proper detection
+        # Realtime video input can also be used
+        #ret, inFrame = cap.read()
         inFrame = cv2.imread(imagePath, 1)
-        frame = resize(inFrame,width=300)
+        frame = resize(inFrame,width=processingWidth)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # grab the frame dimensions and convert it to a blob
+        # Grab the frame dimensions and convert it to a blob
         (h, w) = frame.shape[:2]
         blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0,
                                      (300, 300), (104.0, 177.0, 123.0))
 
-        # pass the blob through the network and obtain the detections and
-        # predictions
+        # Pass the blob through the network and obtain the detections and predictions
         net.setInput(blob)
         detections = net.forward()
 
         box = None
         conf = 0
+
         # loop over the detections
         for i in range(0, detections.shape[2]):
                 # extract the confidence (i.e., probability) associated with the
@@ -128,17 +154,16 @@ for imagePath in paths.list_images(inputPath):
                 if confidence > conf:
                     conf = confidence
                     box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+        # Consider only the face with maximum confidence to eliminate false positives
         if conf >= thresholdConfidence:
                 (startX, startY, endX, endY) = box.astype("int")
                     
                 rectCx = (int)((startX + endX)/2)
                 rectCy = (int)((startY + endY)/2)
 
-                #text = "{:.2f}%".format(conf * 100)
                 y = startY - 10 if startY - 10 > 10 else startY + 10
+                # Placing rectangle over face
                 cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
-                #cv2.putText(frame, text, (startX, y),
-                            #cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
                 
                 rects = detector(gray[startY:endY, startX:endX], 1)
 
@@ -151,6 +176,7 @@ for imagePath in paths.list_images(inputPath):
                         break
                     avgx, avgy = prediceFaceLandmarks(gray, startX, startY, endX, endY)
                 
+                # Finding angles only when structure of nose can be estimated
                 if noseFlag:
                         yaw = math.degrees(math.asin(((endX - startX) / 2 if abs(rectCx - avgx) > (endX - startX) / 2  else rectCx - avgx) * 2 / (endX - startX)))
                         pitch = math.degrees(math.asin((rectCy - avgy) * 2 / (endY - startY))) + 5
